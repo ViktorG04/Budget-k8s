@@ -1,0 +1,183 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: database-service
+spec:
+  type: ClusterIP
+  selector:
+    app: mydatabase
+  ports:
+    - port: 1521
+      targetPort: 1521
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mydatabase
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mydatabase
+  template:
+    metadata:
+      labels:
+        app: mydatabase
+    spec:
+      volumes:
+        - name: database-init
+          configMap:
+            name: database-cm
+        - name: database-persister
+          persistentVolumeClaim:
+            claimName: oracle-pv-claim
+      containers:
+        - name: mydatabase
+          image: gvenzl/oracle-xe:21.3.0
+          env:
+            - name: APP_USER
+              value: BUDGET
+            - name: ORACLE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-secret
+                  key: oracle_password
+            - name: APP_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-secret
+                  key: app_user_password
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+          ports:
+            - containerPort: 1521
+          volumeMounts:
+            - name: database-init
+              mountPath: /container-entrypoint-initdb.d
+            - name: database-persister
+              mountPath: /opt/oracle/oradata
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-cm
+data:
+  init.sql: |
+    ALTER SESSION SET CONTAINER=XEPDB1;
+
+    CREATE TABLE BUDGET."Users" (
+      "idUser" VARCHAR2(36) NOT NULL,
+      "name" NVARCHAR2(50) NOT NULL,
+      "email" NVARCHAR2(60) NOT NULL,
+      "password" NVARCHAR2(100) NOT NULL,
+      "state" CHAR(1) NULL,
+      "createdAt" TIMESTAMP WITH LOCAL TIME ZONE NOT NULL,
+      "updatedAt" TIMESTAMP WITH LOCAL TIME ZONE NOT NULL,
+      PRIMARY KEY ("idUser")
+    );
+
+
+    CREATE TABLE BUDGET."TypeTransfers" (
+      "idTypeTransfer" VARCHAR2(36) NOT NULL,
+      "name" NVARCHAR2(20) NOT NULL,
+      PRIMARY KEY ("idTypeTransfer")
+    );
+
+    CREATE TABLE BUDGET."TypeMoneys" (
+      "idTypeMoney" VARCHAR2(36) NOT NULL,
+      "name" NVARCHAR2(20) NOT NULL,
+      PRIMARY KEY ("idTypeMoney")
+    );
+
+    CREATE TABLE BUDGET."Categories" (
+      "idCategory" VARCHAR2(36) NOT NULL,
+      "name" NVARCHAR2(10) NOT NULL,
+      PRIMARY KEY ("idCategory")
+    );
+
+    CREATE TABLE BUDGET."Accounts" (
+      "idAccount" VARCHAR2(36) NOT NULL,
+      "bankName" NVARCHAR2(50) NOT NULL,
+      "numberAccount" NUMBER(16,0) NOT NULL,
+      "credit" BINARY_FLOAT NOT NULL,
+      "available" BINARY_FLOAT NOT NULL,
+      "expensive" BINARY_FLOAT NOT NULL,
+      "dateExpiration" TIMESTAMP WITH LOCAL TIME ZONE NOT NULL,
+      "state" CHAR(1) NULL,
+      "createdAt" TIMESTAMP WITH LOCAL TIME ZONE NOT NULL,
+      "updatedAt" TIMESTAMP WITH LOCAL TIME ZONE NOT NULL,
+      "idUser" VARCHAR2(36) NULL,
+      "idTypeMoney" VARCHAR2(36) NULL,
+      PRIMARY KEY ("idAccount"),
+      FOREIGN KEY ("idUser") REFERENCES BUDGET."Users"("idUser") ON DELETE SET NULL,
+      FOREIGN KEY ("idTypeMoney") REFERENCES BUDGET."TypeMoneys"("idTypeMoney") ON DELETE SET NULL
+    );
+
+
+    CREATE TABLE BUDGET."ExpenseIncomes" (
+      "idReport" VARCHAR2(36) NOT NULL,
+      "dateReport" TIMESTAMP WITH LOCAL TIME ZONE NOT NULL,
+      "amount" BINARY_FLOAT NOT NULL,
+      "description" NVARCHAR2(255) NOT NULL,
+      "createdAt" TIMESTAMP WITH LOCAL TIME ZONE NOT NULL,
+      "updatedAt" TIMESTAMP WITH LOCAL TIME ZONE NOT NULL,
+      "idAccount" VARCHAR2(36) NULL,
+      "idCategory" VARCHAR2(36) NULL,
+      "idTypeTransfer" VARCHAR2(36) NULL,
+      PRIMARY KEY ("idReport"),
+      FOREIGN KEY ("idAccount") REFERENCES BUDGET."Accounts"("idAccount") ON DELETE SET NULL,
+      FOREIGN KEY ("idCategory") REFERENCES BUDGET."Categories"("idCategory") ON DELETE SET NULL,
+      FOREIGN KEY ("idTypeTransfer") REFERENCES BUDGET."TypeTransfers"("idTypeTransfer") ON DELETE SET NULL
+    );
+
+    CREATE TABLE BUDGET."Transfers" (
+      "idTransfer" VARCHAR2(36) NOT NULL,
+      "dateReport" TIMESTAMP WITH LOCAL TIME ZONE NOT NULL,
+      "amountOrigin" BINARY_FLOAT NOT NULL,
+      "amountDestiny" BINARY_FLOAT NOT NULL,
+      "description" NVARCHAR2(255) NOT NULL,
+      "taxes" BINARY_FLOAT NOT NULL ENABLE, 
+      "createdAt" TIMESTAMP WITH LOCAL TIME ZONE NOT NULL,
+      "updatedAt" TIMESTAMP WITH LOCAL TIME ZONE NOT NULL,
+      "idAccountOrigin" VARCHAR2(36) NULL,
+      "idAccountDestiny" VARCHAR2(36) NULL,
+      PRIMARY KEY ("idTransfer"),
+      FOREIGN KEY ("idAccountOrigin") REFERENCES BUDGET."Accounts"("idAccount") ON DELETE SET NULL,
+      FOREIGN KEY ("idAccountDestiny") REFERENCES BUDGET."Accounts"("idAccount") ON DELETE SET NULL
+    );
+
+    INSERT INTO BUDGET."Users"
+    ("idUser", "name", "email", "password", "state", "createdAt", "updatedAt")
+    VALUES('11e8a6c7-1b5e-4e18-bb8f-8349acd1e3ff', 'Default User', 'email@email.com', '$2a$10$85Tiwn.PCBp2X9A.31n48umVZxAiHxm8PMfZVyC4oA3UHZC4nkFjm', '1', sysdate, sysdate);
+
+    INSERT INTO BUDGET."TypeMoneys"("idTypeMoney", "name") VALUES('1', 'USD');
+    INSERT INTO BUDGET."TypeMoneys"("idTypeMoney", "name") VALUES ('2', 'EUR');
+    INSERT INTO BUDGET."TypeMoneys"("idTypeMoney", "name") VALUES ('3', 'GTQ');
+    INSERT INTO BUDGET."TypeMoneys"("idTypeMoney", "name") VALUES ('4', 'MXN');
+    INSERT INTO BUDGET."TypeMoneys"("idTypeMoney", "name") VALUES ('5', 'ARS');
+
+
+    INSERT INTO BUDGET."TypeTransfers"("idTypeTransfer", "name") VALUES('1', 'Expensive');
+    INSERT INTO BUDGET."TypeTransfers"("idTypeTransfer", "name") VALUES('2', 'Income');
+
+
+    INSERT INTO BUDGET."Categories" ("idCategory", "name") VALUES('1', 'Health');
+    INSERT INTO BUDGET."Categories" ("idCategory", "name") VALUES('2', 'School');
+    INSERT INTO BUDGET."Categories" ("idCategory", "name") VALUES('3', 'Taxes');
+    INSERT INTO BUDGET."Categories" ("idCategory", "name") VALUES('4', 'Food');
+    INSERT INTO BUDGET."Categories" ("idCategory", "name") VALUES('5', 'Car');
+    INSERT INTO BUDGET."Categories" ("idCategory", "name") VALUES('6', 'Clothing');
+    INSERT INTO BUDGET."Categories" ("idCategory", "name") VALUES('7', 'Salary');
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: oracle-pv-claim
+spec:
+  resources:
+    requests:
+      storage: 10Gi
+  accessModes:
+    - ReadWriteOnce

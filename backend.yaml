@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: mybackend
+  ports:
+    - port: 5000
+      targetPort: 5000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mybackend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mybackend
+  template:
+    metadata:
+      labels:
+        app: mybackend
+    spec:
+      containers:
+        - name: mybackend
+          image: viktorg04/backend:v1
+          env:
+            - name: PORT
+              value: "5000"
+            - name: DB_USER
+              value: BUDGET
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-secret
+                  key: app_user_password
+            - name: DB_SERVER
+              value: database-service
+            - name: DB_DATABASE
+              value: XEPDB1
+            - name: DB_PORT
+              value: "1521"
+            - name: JWT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: database-secret
+                  key: jwt
+            - name: KEY_FIXER
+              valueFrom:
+                secretKeyRef:
+                  name: database-secret
+                  key: fixer
+            - name: API_FIXER
+              value: https://api.apilayer.com/fixer
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+          ports:
+            - containerPort: 5000

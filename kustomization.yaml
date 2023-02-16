@@ -1,0 +1,7 @@
+namespace: core-code
+resources:
+  - ns.yaml
+  - secrets.yaml
+  - database.yaml
+  - backend.yaml
+  - frontend.yaml
