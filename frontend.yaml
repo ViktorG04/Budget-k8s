@@ -7,8 +7,10 @@ spec:
   selector:
     app: myfrontend
   ports:
-    - port: 8080
+    - protocol: TCP
+      port: 8080
       targetPort: 80
+      name: http
 ---
 apiVersion: apps/v1
 kind: Deployment

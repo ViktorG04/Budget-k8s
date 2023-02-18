@@ -7,8 +7,10 @@ spec:
   selector:
     app: mybackend
   ports:
-    - port: 5000
+    - protocol: TCP
+      port: 5000
       targetPort: 5000
+      name: http
 ---
 apiVersion: apps/v1
 kind: Deployment

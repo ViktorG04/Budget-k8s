@@ -24,6 +24,10 @@ spec:
       labels:
         app: mydatabase
     spec:
+      securityContext:
+        runAsUser: 54321 #Oracle user
+        runAsGroup: 54321 #install group
+        fsGroup: 54321 #install group
       volumes:
         - name: database-init
           configMap:
