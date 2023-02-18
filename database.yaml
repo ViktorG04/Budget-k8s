@@ -148,10 +148,6 @@ data:
       FOREIGN KEY ("idAccountDestiny") REFERENCES BUDGET."Accounts"("idAccount") ON DELETE SET NULL
     );
 
-    INSERT INTO BUDGET."Users"
-    ("idUser", "name", "email", "password", "state", "createdAt", "updatedAt")
-    VALUES('11e8a6c7-1b5e-4e18-bb8f-8349acd1e3ff', 'Default User', 'email@email.com', '$2a$10$85Tiwn.PCBp2X9A.31n48umVZxAiHxm8PMfZVyC4oA3UHZC4nkFjm', '1', sysdate, sysdate);
-
     INSERT INTO BUDGET."TypeMoneys"("idTypeMoney", "name") VALUES('1', 'USD');
     INSERT INTO BUDGET."TypeMoneys"("idTypeMoney", "name") VALUES ('2', 'EUR');
     INSERT INTO BUDGET."TypeMoneys"("idTypeMoney", "name") VALUES ('3', 'GTQ');
